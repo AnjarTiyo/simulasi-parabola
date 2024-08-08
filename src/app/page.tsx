@@ -1,113 +1,188 @@
-import Image from "next/image";
+'use client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useEffect, useRef, useState } from 'react';
+
+interface Results {
+  time: string;
+  range: string;
+  maxHeight: string;
+}
 
 export default function Home() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [velocity, setVelocity] = useState<number>(100);
+  const [angle, setAngle] = useState<number>(45);
+  const [mass, setMass] = useState<number>(5);
+  const [drag, setDrag] = useState<number>(0.1);
+  const [timeCompression, setTimeCompression] = useState<number>(10);
+  const [results, setResults] = useState<Results>({ time: '', range: '', maxHeight: '' });
+
+  const degreeToRadian = (degree: number): number => degree * Math.PI / 180;
+
+  const draw = (Vo: number, angle: number, timeCompression: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.resetTransform();
+    ctx.transform(1, 0, 0, -1, 0, canvas.height);
+    ctx.fillStyle = 'blue';
+
+    const Vx = Vo * Math.cos(angle);
+    const Vy = Vo * Math.sin(angle);
+    const g = 9.8;
+
+    const start_time = Date.now();
+
+    const timeOfFlight = (2 * Vy) / g;
+    const maxRange = Vx * timeOfFlight;
+    const maxHeight = (Vy * Vy) / (2 * g);
+
+    setResults({
+      time: `${timeOfFlight.toFixed(2)}`,
+      range: `${maxRange.toFixed(2)}`,
+      maxHeight: `${maxHeight.toFixed(2)}`,
+    });
+
+    function update() {
+      const t = (Date.now() - start_time) / (1000 / timeCompression);
+      let x = Vx * t;
+      let y = Vy * t - (0.5 * g * Math.pow(t, 2));
+      ctx!.beginPath();
+      ctx!.arc(x, y, 2, 0, 2 * Math.PI);
+      ctx!.fill();
+      if (y < 0) return;
+      setTimeout(update, t);
+    }
+
+    update();
+  };
+
+  const startSimulation = () => {
+    const radianAngle = degreeToRadian(angle);
+    draw(velocity, radianAngle, timeCompression);
+  };
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <>
+      <h1 className='text-3xl p-4'>Simulasi Gerak Parabola by Anjar UPGRIS</h1>
+      <Card className='flex flex-row mt-2 mx-4 gap-2 p-4' id='config'>
+        <CardHeader className='w-[30%]'>
+          <CardTitle>Cara Penggunaan</CardTitle>
+          <CardDescription className='text-sm text-justify '>Click Buka konfigurasi untuk mengatur konfigurasi. Anda bisa mengatur Kecepatan Mula, Sudut Arah, Berat Benda, Kecepatan Simulasi. Klik mulai untuk memulai simulasi</CardDescription>
+        </CardHeader>
+        <CardContent className='flex flex-row gap-4 w-[50%]'>
+          <div className='flex flex-col w-[40%]'>
+            <div className='flex flex-col gap-2'>
+              <Drawer>
+                <DrawerTrigger asChild>
+                  <Button variant='outline'>Buka Konfigurasi</Button>
+                </DrawerTrigger>
+                <DrawerContent>
+                  <div className='mx-auto w-full max-w-sm'>
+                    <DrawerHeader>
+                      <DrawerTitle>Konfigurasi Simulasi</DrawerTitle>
+                      <DrawerDescription>Atur konfigurasi simulasi</DrawerDescription>
+                    </DrawerHeader>
+                    <div className='flex flex-row gap-2'>
+                      <label htmlFor="init-velocity">Kecepatan Mula (m/s):</label>
+                      <Input
+                        type="number"
+                        id="init-velocity"
+                        value={velocity}
+                        onChange={(e) => setVelocity(parseFloat(e.target.value))}
+                      />
+                    </div>
+                    <div className='flex flex-row gap-2'>
+                      <label htmlFor="angle">Sudut Luncur (degrees):</label>
+                      <Input
+                        type="number"
+                        id="angle"
+                        value={angle}
+                        onChange={(e) => setAngle(parseFloat(e.target.value))}
+                      />
+                    </div>
+                    <div className='flex flex-row gap-2'>
+                      <label htmlFor="mass">Massa Benda (kg):</label>
+                      <Input
+                        type="number"
+                        id="mass"
+                        value={mass}
+                        onChange={(e) => setMass(parseFloat(e.target.value))}
+                        disabled
+                      />
+                    </div>
+                    <div className='flex flex-row gap-2'>
+                      <label htmlFor="drag">Koefisien Hambatan:</label>
+                      <Input
+                        type="number"
+                        id="drag"
+                        value={drag}
+                        onChange={(e) => setDrag(parseFloat(e.target.value))}
+                        disabled
+                      />
+                    </div>
+                    <div className='flex flex-row gap-2'>
+                      <label htmlFor="time-compression">Percepat Simulasi:</label>
+                      <Input
+                        type="number"
+                        id="time-compression"
+                        value={timeCompression}
+                        onChange={(e) => setTimeCompression(parseFloat(e.target.value))}
+                      />
+                    </div>
+                    <DrawerFooter>
+                      <DrawerClose asChild>
+                        <Button>Simpan</Button>
+                      </DrawerClose>
+                    </DrawerFooter>
+                  </div>
+
+                </DrawerContent>
+              </Drawer>
+              <Button onClick={startSimulation}>Mulai Simulasi</Button>
+            </div>
+          </div>
+          <div className='w-[40%]'>
+            <Card id="results" className='p-4'>
+              <h3 className='text-l font-bold'>Hasil:</h3>
+              <div>
+                <div className='flex flex-row'>
+                  <Label>Waktu tempuh</Label>
+                  <Input disabled value={results.time} />
+                  <Label>detik</Label>
+                </div>
+                <div className='flex flex-row gap-2'>
+                  <Label>Jarak tempuh</Label>
+                  <Input disabled value={results.range} />
+                  <Label>meter</Label>
+                </div>
+                <div className='flex flex-row'>
+                  <Label>Ketinggian Maksimal</Label>
+                  <Input disabled value={results.maxHeight} />
+                  <Label>meter</Label>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </CardContent>
+      </Card>
+      <Card className='flex flex-row mt-2 mx-4 gap-2 p-4'>
+        <canvas
+          className="w-full border-black"
+          id="canvas"
+          ref={canvasRef}
+          height={565}
+          width={1500}
           >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+        </canvas>
+      </Card>
+    </>
   );
 }
